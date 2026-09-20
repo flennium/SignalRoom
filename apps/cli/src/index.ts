@@ -21,7 +21,7 @@ program
     '--port <number>',
     'listening port',
     parsePort,
-    parsePort(process.env.SIGNALROOM_PORT ?? '8080'),
+    parsePort(process.env.SIGNALROOM_PORT ?? process.env.PORT ?? '8080'),
   )
   .option(
     '--history <count>',

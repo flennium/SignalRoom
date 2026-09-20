@@ -40,6 +40,25 @@ test('two browser clients share presence and one authoritative notice', async ({
     participant.getByRole('button', { name: 'Acknowledged' }),
   ).toBeDisabled();
 
+  await host.getByLabel('Signal kind').selectOption('notice');
+  await host
+    .getByLabel('Write a notice')
+    .fill('<img src=x onerror="window.signalRoomXss=true">');
+  await host.getByRole('button', { name: 'Publish' }).click();
+  await expect(
+    participant.getByText('<img src=x onerror="window.signalRoomXss=true">'),
+  ).toBeVisible();
+  expect(
+    await participant.evaluate(
+      () => (window as Window & { signalRoomXss?: boolean }).signalRoomXss,
+    ),
+  ).toBeUndefined();
+
+  const storedKeys = await host.evaluate(() =>
+    Object.keys(localStorage).sort(),
+  );
+  expect(storedKeys).toEqual(['signalroom.displayName', 'signalroom.lastKind']);
+
   await hostContext.close();
   await participantContext.close();
 });

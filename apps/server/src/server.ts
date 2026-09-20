@@ -54,18 +54,21 @@ export async function startServer(
 ): Promise<RunningServer> {
   const host = options.host ?? '127.0.0.1';
   const requestedPort = options.port ?? 8080;
+  const maxClients = options.maxClients ?? 100;
   const joinTimeoutMs = options.joinTimeoutMs ?? 5_000;
   const heartbeatMs = options.heartbeatMs ?? 30_000;
   const hub = new Hub(options);
 
   const httpServer = createServer((request, response) => {
-    const requestUrl = new URL(
-      request.url ?? '/',
-      `http://${request.headers.host ?? 'localhost'}`,
-    );
+    const requestUrl = new URL(request.url ?? '/', 'http://localhost');
     response.setHeader('X-Content-Type-Options', 'nosniff');
-    response.setHeader('Referrer-Policy', 'same-origin');
+    response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+    );
+    response.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     response.setHeader(
       'Content-Security-Policy',
       "default-src 'self'; connect-src 'self' ws: wss:; font-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; frame-ancestors 'none'",
@@ -97,18 +100,20 @@ export async function startServer(
   });
 
   httpServer.on('upgrade', (request, socket, head) => {
-    const requestUrl = new URL(
-      request.url ?? '/',
-      `http://${request.headers.host ?? 'localhost'}`,
-    );
+    const requestUrl = new URL(request.url ?? '/', 'http://localhost');
     if (requestUrl.pathname !== '/ws') {
       socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
       socket.destroy();
       return;
     }
+    if (websocketServer.clients.size >= maxClients) {
+      socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n');
+      socket.destroy();
+      return;
+    }
     const origin = request.headers.origin;
-    const sameOrigin = !origin || new URL(origin).host === request.headers.host;
-    if (!sameOrigin && !options.allowedOrigins?.includes(origin)) {
+    const sameOrigin = isSameOrigin(origin, request.headers.host);
+    if (!sameOrigin && (!origin || !options.allowedOrigins?.includes(origin))) {
       socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
       return;
@@ -195,6 +200,13 @@ function configureConnection(
     },
   };
   const publishTimes: number[] = [];
+  let protocolViolations = 0;
+
+  const rejectInvalidEvent = (message: string) => {
+    protocolViolations += 1;
+    peer.send(serverEvent({ type: 'error', code: 'INVALID_EVENT', message }));
+    if (protocolViolations >= 3) socket.close(1008, 'Too many invalid events');
+  };
 
   const joinTimer = setTimeout(() => {
     if (hub.hasJoined(id)) return;
@@ -215,13 +227,7 @@ function configureConnection(
 
   socket.on('message', (data, isBinary) => {
     if (isBinary) {
-      peer.send(
-        serverEvent({
-          type: 'error',
-          code: 'INVALID_EVENT',
-          message: 'SignalRoom accepts text JSON events only.',
-        }),
-      );
+      rejectInvalidEvent('SignalRoom accepts text JSON events only.');
       return;
     }
 
@@ -229,25 +235,13 @@ function configureConnection(
     try {
       parsedJson = JSON.parse(data.toString());
     } catch {
-      peer.send(
-        serverEvent({
-          type: 'error',
-          code: 'INVALID_EVENT',
-          message: 'Send a valid JSON event.',
-        }),
-      );
+      rejectInvalidEvent('Send a valid JSON event.');
       return;
     }
 
     const result = clientEventSchema.safeParse(parsedJson);
     if (!result.success) {
-      peer.send(
-        serverEvent({
-          type: 'error',
-          code: 'INVALID_EVENT',
-          message: 'The event does not match protocol version 1.',
-        }),
-      );
+      rejectInvalidEvent('The event does not match protocol version 1.');
       return;
     }
 
@@ -304,6 +298,15 @@ function configureConnection(
     clearTimeout(joinTimer);
     hub.leave(id);
   });
+}
+
+function isSameOrigin(origin: string | undefined, host: string | undefined) {
+  if (!origin) return true;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
 }
 
 function listen(server: HttpServer, host: string, port: number) {

@@ -52,9 +52,10 @@ function waitFor(predicate: () => boolean, timeoutMs = 1_000) {
 describe('SignalRoom server', () => {
   it('serves health and broadcasts between real clients', async () => {
     server = await startServer({ port: 0, joinTimeoutMs: 500 });
-    expect(
-      await fetch(`${server.url}/health`).then((response) => response.json()),
-    ).toEqual({
+    const health = await fetch(`${server.url}/health`);
+    expect(health.headers.get('referrer-policy')).toBe('no-referrer');
+    expect(health.headers.get('permissions-policy')).toContain('camera=()');
+    expect(await health.json()).toEqual({
       status: 'ok',
       version: '0.1.0',
     });
@@ -198,5 +199,35 @@ describe('SignalRoom server', () => {
     await expect(
       connectWithOrigin(server.url, 'https://untrusted.example'),
     ).rejects.toThrow();
+  });
+
+  it('rejects malformed origins without taking down the server', async () => {
+    server = await startServer({ port: 0 });
+    await expect(connectWithOrigin(server.url, 'not a URL')).rejects.toThrow();
+    expect(
+      await fetch(`${server.url}/health`).then((response) => response.ok),
+    ).toBe(true);
+  });
+
+  it('disconnects clients that repeatedly send malformed events', async () => {
+    server = await startServer({ port: 0 });
+    const client = await connect(server.url);
+    const closed = new Promise<number>((resolve) =>
+      client.socket.once('close', (code) => resolve(code)),
+    );
+    client.socket.send('{');
+    client.socket.send('[]');
+    client.socket.send(Buffer.from('binary'));
+    await expect(closed).resolves.toBe(1008);
+    expect(
+      await fetch(`${server.url}/health`).then((response) => response.ok),
+    ).toBe(true);
+  });
+
+  it('limits sockets that have not joined yet', async () => {
+    server = await startServer({ port: 0, maxClients: 1 });
+    const first = await connect(server.url);
+    await expect(connect(server.url)).rejects.toThrow();
+    first.socket.close();
   });
 });

@@ -186,7 +186,7 @@ export function HomePage() {
       <footer className="home-footer">
         <span>Temporary by design</span>
         <span>No account required</span>
-        <span>Web and terminal clients</span>
+        <span>No analytics or cookies</span>
       </footer>
     </div>
   );

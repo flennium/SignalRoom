@@ -2,7 +2,21 @@
 
 SignalRoom needs one continuously running Node.js process with WebSocket support. GitHub Pages hosts the static preview only.
 
+## Demo deployment on Render
+
+The repository includes `render.yaml`. In Render, create a new Blueprint from this repository to get a free Docker web service with `/health` monitoring and automatic deploys from `main`.
+
+The free service is suitable for the public demo, but it sleeps after 15 idle minutes and loses in-memory rooms whenever it sleeps, restarts, or deploys. A production host should use an always-on instance. Once Render assigns the `onrender.com` URL, use that server URL as the public demo; it serves both the interface and WebSocket endpoint over TLS.
+
 ## Container deployment
+
+Each GitHub release publishes a tested image to GitHub Container Registry:
+
+```console
+docker run --rm -p 8080:8080 ghcr.io/flennium/signalroom:latest
+```
+
+Release deployments should pin a version such as `ghcr.io/flennium/signalroom:0.1.0` so upgrades are deliberate. You can also build locally:
 
 ```console
 docker build -t signalroom .
@@ -19,6 +33,7 @@ Any container host can run the image if it supports long-lived WebSocket connect
 | --------------------------- | -------------------------- | ------------------------------------------------------------------------------- |
 | `SIGNALROOM_HOST`           | `127.0.0.1` outside Docker | Bind address. Container sets `0.0.0.0`.                                         |
 | `SIGNALROOM_PORT`           | `8080`                     | HTTP and WebSocket port.                                                        |
+| `PORT`                      | unset                      | Hosting-provider port fallback when `SIGNALROOM_PORT` is unset.                 |
 | `SIGNALROOM_HISTORY`        | `50`                       | Signals retained per room.                                                      |
 | `SIGNALROOM_MAX_CLIENTS`    | `100`                      | Server-wide connection limit.                                                   |
 | `SIGNALROOM_ALLOWED_ORIGIN` | none                       | Comma-separated extra browser origins. Same-origin clients are always accepted. |

@@ -70,4 +70,35 @@ describe('protocol schemas', () => {
       }).success,
     ).toBe(true);
   });
+
+  it('safely rejects randomized JSON-shaped input', () => {
+    let seed = 0x51_67_6e_61;
+    const random = () => {
+      seed = (seed * 1_664_525 + 1_013_904_223) >>> 0;
+      return seed / 2 ** 32;
+    };
+    const value = (depth = 0): unknown => {
+      const choice = Math.floor(random() * (depth > 2 ? 5 : 7));
+      if (choice === 0) return null;
+      if (choice === 1) return random() > 0.5;
+      if (choice === 2) return (random() - 0.5) * Number.MAX_SAFE_INTEGER;
+      if (choice === 3)
+        return String.fromCodePoint(Math.floor(random() * 0x80));
+      if (choice === 4) return 'x'.repeat(Math.floor(random() * 10_000));
+      if (choice === 5)
+        return Array.from({ length: Math.floor(random() * 8) }, () =>
+          value(depth + 1),
+        );
+      return Object.fromEntries(
+        Array.from({ length: Math.floor(random() * 8) }, (_, index) => [
+          `key-${index}`,
+          value(depth + 1),
+        ]),
+      );
+    };
+
+    for (let index = 0; index < 1_000; index += 1) {
+      expect(() => clientEventSchema.safeParse(value())).not.toThrow();
+    }
+  });
 });
