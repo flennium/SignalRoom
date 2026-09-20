@@ -5,6 +5,7 @@ import {
   ROOM_KEY_PATTERN,
 } from '@signalroom/protocol';
 import { appPath } from '../base-path.js';
+import { BrandMark } from '../components/brand-mark.js';
 
 const DISPLAY_NAME_KEY = 'signalroom.displayName';
 
@@ -57,7 +58,7 @@ export function HomePage() {
     <div className="home-shell">
       <header className="site-header">
         <a className="wordmark" href={appPath()} aria-label="SignalRoom home">
-          <span className="wordmark-mark" aria-hidden="true" />
+          <BrandMark />
           SignalRoom
         </a>
         <a className="text-link" href="#how-it-works">

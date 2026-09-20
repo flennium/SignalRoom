@@ -14,6 +14,7 @@
   --success: #287a58;
   --danger: #b4473a;
   --action: #c66a15;
+  --brand-pulse: #f16632;
 }
 
 * {
@@ -81,21 +82,10 @@ a {
   text-decoration: none;
 }
 .wordmark-mark {
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--signal);
-  border-radius: 50%;
-  position: relative;
-}
-.wordmark-mark::after {
-  content: '';
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: var(--signal);
-  border-radius: 50%;
-  left: 4px;
-  top: 4px;
+  width: 25px;
+  height: 25px;
+  color: var(--ink);
+  flex: 0 0 auto;
 }
 
 .button {

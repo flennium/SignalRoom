@@ -2,11 +2,9 @@
 
 SignalRoom needs one continuously running Node.js process with WebSocket support. GitHub Pages hosts the static preview only.
 
-## Demo deployment on Render
+## Public demo
 
-The repository includes `render.yaml`. In Render, create a new Blueprint from this repository to get a free Docker web service with `/health` monitoring and automatic deploys from `main`.
-
-The free service is suitable for the public demo, but it sleeps after 15 idle minutes and loses in-memory rooms whenever it sleeps, restarts, or deploys. A production host should use an always-on instance. Once Render assigns the `onrender.com` URL, use that server URL as the public demo; it serves both the interface and WebSocket endpoint over TLS.
+The recommended demo host is one always-on Koyeb Eco Micro instance. Follow the exact settings and launch checks in the [public demo hosting plan](HOSTING_PLAN.md).
 
 ## Container deployment
 

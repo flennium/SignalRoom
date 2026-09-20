@@ -15,6 +15,7 @@ import {
 import { RoomClient } from '../room/room-client.js';
 import { initialRoomState, roomReducer } from '../room/room-state.js';
 import { appPath } from '../base-path.js';
+import { BrandMark } from '../components/brand-mark.js';
 
 const DISPLAY_NAME_KEY = 'signalroom.displayName';
 
@@ -65,7 +66,7 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
       <main className="centered-page">
         <section className="join-panel">
           <a className="wordmark" href={appPath()}>
-            <span className="wordmark-mark" />
+            <BrandMark />
             SignalRoom
           </a>
           <h1>This room link is not valid.</h1>
@@ -92,7 +93,7 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
           }}
         >
           <a className="wordmark" href={appPath()}>
-            <span className="wordmark-mark" />
+            <BrandMark />
             SignalRoom
           </a>
           <h1>Join this room</h1>
@@ -148,7 +149,7 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
       </a>
       <header className="room-header">
         <a className="wordmark" href={appPath()}>
-          <span className="wordmark-mark" />
+          <BrandMark />
           SignalRoom
         </a>
         <div className="room-title-block">

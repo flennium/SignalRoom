@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">SignalRoom</title>
+  <desc id="desc">A temporary room, a clear signal, and visible receipt.</desc>
+  <rect width="1200" height="630" fill="#f5f2eb"/>
+  <path d="M0 0h1200v18H0z" fill="#17212b"/>
+  <path d="M905 0h295v630H810z" fill="#e7ecee"/>
+  <path d="M992 160h-76c-39 0-70 31-70 70v170c0 39 31 70 70 70h76" fill="none" stroke="#17212b" stroke-width="44" stroke-linecap="round"/>
+  <circle cx="994" cy="315" r="27" fill="#f16632"/>
+  <circle cx="1072" cy="315" r="27" fill="#f16632"/>
+  <text x="92" y="264" fill="#17212b" font-family="IBM Plex Sans, Arial, sans-serif" font-size="86" font-weight="600" letter-spacing="-4">SignalRoom</text>
+  <text x="98" y="336" fill="#46545f" font-family="IBM Plex Sans, Arial, sans-serif" font-size="30">A temporary room for clear signals</text>
+  <text x="98" y="378" fill="#46545f" font-family="IBM Plex Sans, Arial, sans-serif" font-size="30">and visible acknowledgement.</text>
+  <g transform="translate(98 470)">
+    <circle cx="9" cy="9" r="9" fill="#f16632"/>
+    <text x="32" y="17" fill="#17212b" font-family="IBM Plex Mono, monospace" font-size="22">web + terminal · no accounts · temporary by design</text>
+  </g>
+</svg>

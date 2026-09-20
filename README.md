@@ -1,4 +1,4 @@
-# SignalRoom
+![SignalRoom](docs/assets/signalroom-lockup.svg)
 
 SignalRoom is a small live room for the moments when a group needs one clear channel and does not need another chat workspace.
 
@@ -93,6 +93,7 @@ Production deployments should use HTTPS/WSS, unguessable room keys, and an expli
 - [Interface specification](docs/UI_SPEC.md)
 - [Project plan](docs/PROJECT_PLAN.md)
 - [Brand asset brief](docs/BRAND_ASSET_BRIEF.md)
+- [Public demo hosting plan](docs/HOSTING_PLAN.md)
 - [Deployment](docs/DEPLOYMENT.md)
 
 SignalRoom is early software. If you try it with a real group, open an issue and say what the room was for, what confused people, and whether acknowledgements helped.

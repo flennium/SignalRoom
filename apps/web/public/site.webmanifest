@@ -1,0 +1,16 @@
+{
+  "name": "SignalRoom",
+  "short_name": "SignalRoom",
+  "description": "A temporary live room for clear signals and visible acknowledgement.",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f3f6f8",
+  "theme_color": "#17212b",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

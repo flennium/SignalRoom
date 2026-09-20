@@ -34,3 +34,15 @@ The final identity should communicate: **a temporary room, a clear signal, and v
 ## Current concept board
 
 The first exploration board is available at [docs/assets/brand-concepts.png](assets/brand-concepts.png). It compares the Rail, Threshold, and Receipt directions; it is reference work, not final export-ready artwork.
+
+## Selected direction
+
+The product uses **Threshold**, the middle concept. The open boundary reads as a temporary room and the two orange points read as a signal crossing into it. It remains recognizable at favicon size and works in one color.
+
+Current production assets:
+
+- [standalone SVG mark](assets/signalroom-mark.svg)
+- [horizontal SVG lockup](assets/signalroom-lockup.svg)
+- [1200 × 630 social preview](assets/social-preview.png)
+
+Core colors are Ink `#17212B`, Pulse `#F16632`, Canvas `#F3F6F8`, and white. Keep clear space around the mark equal to one orange point diameter. Do not place the mark below 16 px or add glow, gradients, shadows, or extra signal points.
