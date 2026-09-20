@@ -1,62 +1,113 @@
-# Deploy SignalRoom
+# Deploy SignalRoom on Render
 
-SignalRoom needs one continuously running Node.js process with WebSocket support. GitHub Pages hosts the static preview only.
+SignalRoom runs as one Docker web service. The same service hosts the website, `/health`, and the `/ws` WebSocket endpoint.
 
-## Public demo
+## Before you deploy
 
-The recommended demo host is one always-on Koyeb Eco Micro instance. Follow the exact settings and launch checks in the [public demo hosting plan](HOSTING_PLAN.md).
+You need:
 
-## Container deployment
+- the SignalRoom repository on GitHub;
+- a Render account connected to GitHub;
+- a paid Render web-service instance if the demo must stay awake.
 
-Each GitHub release publishes a tested image to GitHub Container Registry:
+Render's free web services sleep after 15 minutes without HTTP or WebSocket traffic. They are useful for a short test, but the first visitor after sleep can wait about a minute. Choose paid compute for a dependable public demo.
+
+Keep the service at **one instance**. Rooms and recent signals live in that process's memory. Multiple instances would divide connected clients between separate room states.
+
+## Create the service
+
+1. Sign in at [dashboard.render.com](https://dashboard.render.com/).
+2. Select **New → Web Service**.
+3. Connect `flennium/SignalRoom`.
+4. Use these settings:
+
+| Setting        | Value                           |
+| -------------- | ------------------------------- |
+| Name           | `signalroom-demo`               |
+| Branch         | `main`                          |
+| Language       | Docker                          |
+| Dockerfile     | `./Dockerfile`                  |
+| Region         | The region nearest most testers |
+| Instance count | `1`                             |
+| Health check   | `/health`                       |
+| Auto deploy    | On commit                       |
+
+5. Add these environment variables:
+
+| Variable                 | Value     |
+| ------------------------ | --------- |
+| `SIGNALROOM_HOST`        | `0.0.0.0` |
+| `SIGNALROOM_PORT`        | `8080`    |
+| `SIGNALROOM_MAX_CLIENTS` | `100`     |
+| `SIGNALROOM_HISTORY`     | `50`      |
+
+6. Select paid compute with at least 512 MB RAM if the demo must remain available.
+7. Create the web service and wait for the Docker build to finish.
+
+No database, secret, volume, build command, or start-command override is required.
+
+## Verify the deployment
+
+Render assigns a URL such as `https://signalroom-demo.onrender.com`.
+
+Check the health endpoint:
 
 ```console
-docker run --rm -p 8080:8080 ghcr.io/flennium/signalroom:latest
+curl https://signalroom-demo.onrender.com/health
 ```
 
-Release deployments should pin a version such as `ghcr.io/flennium/signalroom:0.1.0` so upgrades are deliberate. You can also build locally:
+The response should contain:
 
-```console
-docker build -t signalroom .
-docker run --rm -p 8080:8080 signalroom
+```json
+{ "status": "ok", "version": "0.1.0" }
 ```
 
-Open `http://localhost:8080`. The same origin serves the browser UI, `/health`, and `/ws`.
+Then test the real application:
 
-Any container host can run the image if it supports long-lived WebSocket connections. Configure port `8080`, route HTTPS traffic to it, and use `/health` for health checks. TLS must terminate at the host so browsers connect through `wss://`.
+1. Open the Render URL in one browser.
+2. Create a room.
+3. Open its link in a private window or another browser.
+4. Confirm both participants appear.
+5. Publish a notice, question, decision, and action.
+6. Acknowledge the action from the second browser.
+7. Confirm both browsers show the same stream and acknowledgement count.
+8. Leave the room connected for at least 35 minutes to exercise the heartbeat.
 
-## Environment
+Render terminates TLS, so browser connections use HTTPS and WSS automatically.
 
-| Variable                    | Default                    | Purpose                                                                         |
-| --------------------------- | -------------------------- | ------------------------------------------------------------------------------- |
-| `SIGNALROOM_HOST`           | `127.0.0.1` outside Docker | Bind address. Container sets `0.0.0.0`.                                         |
-| `SIGNALROOM_PORT`           | `8080`                     | HTTP and WebSocket port.                                                        |
-| `PORT`                      | unset                      | Hosting-provider port fallback when `SIGNALROOM_PORT` is unset.                 |
-| `SIGNALROOM_HISTORY`        | `50`                       | Signals retained per room.                                                      |
-| `SIGNALROOM_MAX_CLIENTS`    | `100`                      | Server-wide connection limit.                                                   |
-| `SIGNALROOM_ALLOWED_ORIGIN` | none                       | Comma-separated extra browser origins. Same-origin clients are always accepted. |
+## Connect the GitHub Pages preview
 
-Do not set an additional origin when the server serves its own web interface. Set it only when a separately hosted browser build connects to the server.
+The Render URL already serves the complete application. Connecting GitHub Pages is optional.
 
-## Separate static client
+To make the Pages build use Render, set this build environment variable in `.github/workflows/pages.yml`:
 
-```console
-VITE_BASE_PATH=/ VITE_SIGNALROOM_WS_URL=wss://signalroom.example/ws npm run build -w @signalroom/web
+```yaml
+VITE_SIGNALROOM_WS_URL: wss://signalroom-demo.onrender.com/ws
 ```
 
-Add that browser origin to `SIGNALROOM_ALLOWED_ORIGIN` on the server. Never configure `ws://` for a page served over HTTPS.
+Also set this Render environment variable:
 
-## Release check
-
-```console
-npm ci
-npm run format:check
-npm run lint
-npm run typecheck
-npm test
-npm run build
-npm run test:e2e -- --project=chromium
-docker build -t signalroom .
+```text
+SIGNALROOM_ALLOWED_ORIGIN=https://flennium.github.io
 ```
 
-After deployment, verify `/health`, create one room, join from a second browser, publish every signal kind, acknowledge an action, and restart the service to confirm that temporary data is intentionally cleared.
+Redeploy both services, then test room creation from the Pages URL.
+
+## Update or roll back
+
+Pushing to `main` triggers a Render deployment when auto deploy is enabled. Render keeps deployment history in the service dashboard; choose an earlier successful deployment to roll back.
+
+A deploy or restart clears all rooms and recent signals. That is intentional in version 0.1.0.
+
+## Custom domain
+
+Add the domain under **Settings → Custom Domains**, create the DNS record Render shows, and wait for its managed certificate. Test both `/health` and a real WebSocket room after the certificate becomes active.
+
+## Operational checks
+
+- Keep one running instance until SignalRoom gains shared room storage.
+- Watch memory, restarts, connection counts, and response latency in Render.
+- Keep `/health` enabled.
+- Use an unguessable room key and share room links only with intended participants.
+- Review Render usage and billing monthly.
+- Run the repository CI checks before every release.
