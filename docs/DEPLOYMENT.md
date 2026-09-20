@@ -79,10 +79,10 @@ Render terminates TLS, so browser connections use HTTPS and WSS automatically.
 
 The Render URL already serves the complete application. Connecting GitHub Pages is optional.
 
-To make the Pages build use Render, set this build environment variable in `.github/workflows/pages.yml`:
+The Pages workflow already reads the repository variable `SIGNALROOM_WS_URL`. After Render assigns its hostname, open **GitHub → Settings → Secrets and variables → Actions → Variables** and create:
 
-```yaml
-VITE_SIGNALROOM_WS_URL: wss://signalroom-demo.onrender.com/ws
+```text
+SIGNALROOM_WS_URL=wss://signalroom-demo.onrender.com/ws
 ```
 
 Also set this Render environment variable:

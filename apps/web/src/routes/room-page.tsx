@@ -18,6 +18,7 @@ import { appPath } from '../base-path.js';
 import { BrandMark } from '../components/brand-mark.js';
 
 const DISPLAY_NAME_KEY = 'signalroom.displayName';
+const SIGNAL_KINDS: SignalKind[] = ['notice', 'question', 'decision', 'action'];
 
 export function RoomPage({ roomKey }: { roomKey: string }) {
   const validRoomKey = ROOM_KEY_PATTERN.test(roomKey);
@@ -191,7 +192,14 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
             </div>
           )}
           <div className="stream-heading">
-            <span>Today</span>
+            <div>
+              <p>Signal feed</p>
+              <h2>What the room needs now</h2>
+            </div>
+            <span>
+              {state.signals.length}{' '}
+              {state.signals.length === 1 ? 'signal' : 'signals'}
+            </span>
           </div>
           <section className="signal-stream" aria-label="Room signals">
             {state.signals.length === 0 ? (
@@ -216,16 +224,18 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
                     className={`signal-item signal-${signal.kind}`}
                     key={signal.id}
                   >
-                    <span
-                      className={`rail-marker marker-${signal.kind}`}
-                      aria-hidden="true"
-                    />
-                    <p className="signal-meta">
-                      {kindLabel(signal.kind)} ·{' '}
-                      {signal.sender.id === state.self?.id
-                        ? 'You'
-                        : signal.sender.name}{' '}
-                      ·{' '}
+                    <header className="signal-card-header">
+                      <span className={`signal-kind kind-${signal.kind}`}>
+                        {kindLabel(signal.kind)}
+                      </span>
+                      <span className="signal-sender">
+                        <i aria-hidden="true">
+                          {signal.sender.name.slice(0, 1).toUpperCase()}
+                        </i>
+                        {signal.sender.id === state.self?.id
+                          ? 'You'
+                          : signal.sender.name}
+                      </span>
                       <time
                         dateTime={signal.createdAt}
                         title={new Date(signal.createdAt).toLocaleString()}
@@ -235,7 +245,7 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
                           minute: '2-digit',
                         }).format(new Date(signal.createdAt))}
                       </time>
-                    </p>
+                    </header>
                     <p className="signal-body">{signal.text}</p>
                     <div className="acknowledgement-row">
                       <button
@@ -269,24 +279,24 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
           </section>
 
           <form className="composer" onSubmit={publish}>
-            <label className="composer-kind">
-              <span
-                className={`kind-dot kind-dot-${kind}`}
-                aria-hidden="true"
-              />
-              <span className="visually-hidden">Signal kind</span>
-              <select
-                value={kind}
-                onChange={(event) => setKind(event.target.value as SignalKind)}
-              >
-                <option value="notice">Notice</option>
-                <option value="question">Question</option>
-                <option value="decision">Decision</option>
-                <option value="action">Action</option>
-              </select>
-            </label>
+            <fieldset className="kind-picker">
+              <legend>Signal type</legend>
+              {SIGNAL_KINDS.map((option) => (
+                <label key={option} className={`kind-option kind-${option}`}>
+                  <input
+                    type="radio"
+                    name="signal-kind"
+                    value={option}
+                    checked={kind === option}
+                    onChange={() => setKind(option)}
+                  />
+                  <span aria-hidden="true" />
+                  {kindLabel(option)}
+                </label>
+              ))}
+            </fieldset>
             <label className="visually-hidden" htmlFor="signal-draft">
-              Write a notice
+              Write a signal
             </label>
             <textarea
               id="signal-draft"
@@ -300,7 +310,7 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
               }}
               rows={2}
               maxLength={MAX_MESSAGE_LENGTH}
-              placeholder="Write a notice…"
+              placeholder={`Write a ${kind}…`}
               disabled={state.connection !== 'connected'}
             />
             <div className="composer-footer">
@@ -321,8 +331,14 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
         <aside
           className={`participant-rail ${participantsOpen ? 'participant-rail-open' : ''}`}
         >
+          <div className="room-summary">
+            <span>Room</span>
+            <strong>{state.room?.label ?? roomLabel ?? 'SignalRoom'}</strong>
+            <code>{roomKey}</code>
+          </div>
           <div className="participant-heading">
             <h2>Participants</h2>
+            <span>{state.participants.length} online</span>
             <button
               className="drawer-close"
               onClick={() => setParticipantsOpen(false)}
@@ -348,13 +364,9 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
                 </li>
               ))}
           </ul>
-          <div className="room-details">
-            <h2>Room</h2>
-            <p>
-              Key <code>{roomKey}</code>
-            </p>
-            <p>History clears when the server stops.</p>
-          </div>
+          <p className="room-note">
+            Temporary by design. History clears when the server stops.
+          </p>
         </aside>
       </div>
 

@@ -25,14 +25,14 @@ test('two browser clients share presence and one authoritative notice', async ({
     participant.getByRole('button', { name: '2 online' }),
   ).toBeVisible();
 
-  await host.getByLabel('Write a notice').fill('The API is ready.');
+  await host.getByLabel('Write a signal').fill('The API is ready.');
   await host.getByRole('button', { name: 'Publish' }).click();
 
   await expect(host.getByText('The API is ready.')).toHaveCount(1);
   await expect(participant.getByText('The API is ready.')).toHaveCount(1);
 
-  await host.getByLabel('Signal kind').selectOption('action');
-  await host.getByLabel('Write a notice').fill('Restart the test client.');
+  await host.locator('label.kind-action').click();
+  await host.getByLabel('Write a signal').fill('Restart the test client.');
   await host.getByRole('button', { name: 'Publish' }).click();
   await participant.getByRole('button', { name: 'Acknowledge action' }).click();
   await expect(host.getByText('1 of 2 online acknowledged')).toBeVisible();
@@ -40,9 +40,9 @@ test('two browser clients share presence and one authoritative notice', async ({
     participant.getByRole('button', { name: 'Acknowledged' }),
   ).toBeDisabled();
 
-  await host.getByLabel('Signal kind').selectOption('notice');
+  await host.locator('label.kind-notice').click();
   await host
-    .getByLabel('Write a notice')
+    .getByLabel('Write a signal')
     .fill('<img src=x onerror="window.signalRoomXss=true">');
   await host.getByRole('button', { name: 'Publish' }).click();
   await expect(

@@ -28,6 +28,7 @@ jobs:
       - run: npm run build -w @signalroom/web
         env:
           VITE_BASE_PATH: /SignalRoom/
+          VITE_SIGNALROOM_WS_URL: ${{ vars.SIGNALROOM_WS_URL }}
       - name: Add single-page route fallback
         run: cp apps/web/dist/index.html apps/web/dist/404.html
       - uses: actions/configure-pages@v5
