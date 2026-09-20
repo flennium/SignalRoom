@@ -30,3 +30,7 @@ Present three distinct concepts. For each, include the idea in one sentence, con
 Deliver editable SVG source, outlined SVG, PDF, transparent PNG exports, favicon files, the social card, a short usage sheet, and license/source details for every typeface. Assets must remain legible without color and meet WCAG AA contrast when used as interface elements.
 
 The final identity should communicate: **a temporary room, a clear signal, and visible receipt.**
+
+## Current concept board
+
+The first exploration board is available at [docs/assets/brand-concepts.png](assets/brand-concepts.png). It compares the Rail, Threshold, and Receipt directions; it is reference work, not final export-ready artwork.
