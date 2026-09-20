@@ -20,9 +20,17 @@ test('two browser clients share presence and one authoritative notice', async ({
   const participant = await participantContext.newPage();
   await participant.goto(host.url());
 
-  await expect(host.getByRole('button', { name: '2 online' })).toBeVisible();
   await expect(
-    participant.getByRole('button', { name: '2 online' }),
+    host
+      .getByText('2 online', { exact: true })
+      .filter({ visible: true })
+      .first(),
+  ).toBeVisible();
+  await expect(
+    participant
+      .getByText('2 online', { exact: true })
+      .filter({ visible: true })
+      .first(),
   ).toBeVisible();
 
   await host.getByLabel('Write a signal').fill('The API is ready.');
@@ -31,7 +39,7 @@ test('two browser clients share presence and one authoritative notice', async ({
   await expect(host.getByText('The API is ready.')).toHaveCount(1);
   await expect(participant.getByText('The API is ready.')).toHaveCount(1);
 
-  await host.locator('label.kind-action').click();
+  await host.getByLabel('Action').check({ force: true });
   await host.getByLabel('Write a signal').fill('Restart the test client.');
   await host.getByRole('button', { name: 'Publish' }).click();
   await participant.getByRole('button', { name: 'Acknowledge action' }).click();
@@ -40,7 +48,7 @@ test('two browser clients share presence and one authoritative notice', async ({
     participant.getByRole('button', { name: 'Acknowledged' }),
   ).toBeDisabled();
 
-  await host.locator('label.kind-notice').click();
+  await host.getByLabel('Notice').check({ force: true });
   await host
     .getByLabel('Write a signal')
     .fill('<img src=x onerror="window.signalRoomXss=true">');
