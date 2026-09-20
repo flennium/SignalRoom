@@ -42,6 +42,25 @@ describe('protocol schemas', () => {
     ).toBe(false);
   });
 
+  it('accepts every signal kind and acknowledgements', () => {
+    for (const kind of ['notice', 'question', 'decision', 'action']) {
+      expect(
+        clientEventSchema.safeParse({
+          type: 'publish',
+          kind,
+          text: 'Shared signal',
+          clientRequestId: crypto.randomUUID(),
+        }).success,
+      ).toBe(true);
+    }
+    expect(
+      clientEventSchema.safeParse({
+        type: 'ack',
+        messageId: crypto.randomUUID(),
+      }).success,
+    ).toBe(true);
+  });
+
   it('accepts documented server events', () => {
     expect(
       serverEventSchema.safeParse({

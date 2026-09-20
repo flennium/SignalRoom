@@ -3,6 +3,7 @@ import {
   serverEventSchema,
   type PublishEvent,
   type ServerEvent,
+  type SignalKind,
 } from '@signalroom/protocol';
 
 interface ConnectOptions {
@@ -11,13 +12,26 @@ interface ConnectOptions {
   name: string;
   onEvent(event: ServerEvent): void;
   onOffline(message?: string): void;
+  onReconnecting(attempt: number): void;
 }
 
 export class RoomClient {
   private socket: WebSocket | null = null;
+  private options: ConnectOptions | null = null;
+  private reconnectTimer: number | null = null;
+  private reconnectAttempt = 0;
+  private intentionallyClosed = false;
 
   connect(options: ConnectOptions) {
-    this.disconnect();
+    this.disconnect(false);
+    this.options = options;
+    this.intentionallyClosed = false;
+    this.open();
+  }
+
+  private open() {
+    const options = this.options;
+    if (!options) return;
     const configuredUrl = import.meta.env.VITE_SIGNALROOM_WS_URL as
       string | undefined;
     if (!configuredUrl && window.location.hostname.endsWith('.github.io')) {
@@ -34,6 +48,7 @@ export class RoomClient {
     this.socket = socket;
 
     socket.addEventListener('open', () => {
+      this.reconnectAttempt = 0;
       socket.send(
         JSON.stringify({
           type: 'join',
@@ -58,17 +73,29 @@ export class RoomClient {
         options.onOffline('The server sent unreadable data.');
       }
     });
-    socket.addEventListener('error', () => options.onOffline());
+    socket.addEventListener('error', () => undefined);
     socket.addEventListener('close', (event) => {
-      if (this.socket === socket && !event.wasClean) options.onOffline();
+      if (this.socket !== socket || this.intentionallyClosed) return;
+      this.socket = null;
+      if (event.code === 1008 || event.code === 1003) {
+        options.onOffline(
+          event.reason || 'The server rejected this connection.',
+        );
+        return;
+      }
+      this.reconnectAttempt += 1;
+      options.onReconnecting(this.reconnectAttempt);
+      const delay = Math.min(15_000, 500 * 2 ** (this.reconnectAttempt - 1));
+      const jitteredDelay = Math.round(delay * (0.8 + Math.random() * 0.4));
+      this.reconnectTimer = window.setTimeout(() => this.open(), jitteredDelay);
     });
   }
 
-  publish(text: string, clientRequestId: string) {
+  publish(kind: SignalKind, text: string, clientRequestId: string) {
     if (this.socket?.readyState !== WebSocket.OPEN) return false;
     const event: PublishEvent = {
       type: 'publish',
-      kind: 'notice',
+      kind,
       text,
       clientRequestId,
     };
@@ -76,7 +103,18 @@ export class RoomClient {
     return true;
   }
 
-  disconnect() {
+  acknowledge(messageId: string) {
+    if (this.socket?.readyState !== WebSocket.OPEN) return false;
+    this.socket.send(JSON.stringify({ type: 'ack', messageId }));
+    return true;
+  }
+
+  disconnect(intentional = true) {
+    this.intentionallyClosed = intentional;
+    if (this.reconnectTimer !== null) {
+      window.clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (this.socket) {
       const socket = this.socket;
       this.socket = null;

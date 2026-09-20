@@ -10,6 +10,7 @@ import {
   MAX_DISPLAY_NAME_LENGTH,
   MAX_MESSAGE_LENGTH,
   ROOM_KEY_PATTERN,
+  type SignalKind,
 } from '@signalroom/protocol';
 import { RoomClient } from '../room/room-client.js';
 import { initialRoomState, roomReducer } from '../room/room-state.js';
@@ -24,6 +25,11 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
   );
   const [draftName, setDraftName] = useState(displayName);
   const [draft, setDraft] = useState('');
+  const [kind, setKind] = useState<SignalKind>(
+    () =>
+      (localStorage.getItem('signalroom.lastKind') as SignalKind | null) ??
+      'notice',
+  );
   const [state, dispatch] = useReducer(roomReducer, initialRoomState);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const client = useMemo(() => new RoomClient(), []);
@@ -41,6 +47,7 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
       onEvent: (event) => dispatch({ type: 'server', event }),
       onOffline: (message) =>
         dispatch({ type: 'offline', ...(message ? { message } : {}) }),
+      onReconnecting: (attempt) => dispatch({ type: 'reconnecting', attempt }),
     });
     return () => client.disconnect();
   }, [client, displayName, roomKey, roomLabel, validRoomKey]);
@@ -122,8 +129,10 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
     if (!text || state.connection !== 'connected' || state.publishingRequestId)
       return;
     const requestId = crypto.randomUUID();
-    if (client.publish(text, requestId))
+    if (client.publish(kind, text, requestId)) {
+      localStorage.setItem('signalroom.lastKind', kind);
       dispatch({ type: 'publishing', requestId });
+    }
   }
 
   const canPublish =
@@ -191,39 +200,90 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
                 <p>Publish a notice to begin this room.</p>
               </div>
             ) : (
-              state.signals.map((signal) => (
-                <article className="signal-item" key={signal.id}>
-                  <span
-                    className="rail-marker marker-notice"
-                    aria-hidden="true"
-                  />
-                  <p className="signal-meta">
-                    Notice ·{' '}
-                    {signal.sender.id === state.self?.id
-                      ? 'You'
-                      : signal.sender.name}{' '}
-                    ·{' '}
-                    <time
-                      dateTime={signal.createdAt}
-                      title={new Date(signal.createdAt).toLocaleString()}
-                    >
-                      {new Intl.DateTimeFormat(undefined, {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      }).format(new Date(signal.createdAt))}
-                    </time>
-                  </p>
-                  <p className="signal-body">{signal.text}</p>
-                </article>
-              ))
+              state.signals.map((signal) => {
+                const acknowledged = signal.acknowledgedBy.some(
+                  (participant) => participant.id === state.self?.id,
+                );
+                const onlineAcknowledgements = signal.acknowledgedBy.filter(
+                  (acknowledger) =>
+                    state.participants.some(
+                      (participant) => participant.id === acknowledger.id,
+                    ),
+                ).length;
+                return (
+                  <article
+                    className={`signal-item signal-${signal.kind}`}
+                    key={signal.id}
+                  >
+                    <span
+                      className={`rail-marker marker-${signal.kind}`}
+                      aria-hidden="true"
+                    />
+                    <p className="signal-meta">
+                      {kindLabel(signal.kind)} ·{' '}
+                      {signal.sender.id === state.self?.id
+                        ? 'You'
+                        : signal.sender.name}{' '}
+                      ·{' '}
+                      <time
+                        dateTime={signal.createdAt}
+                        title={new Date(signal.createdAt).toLocaleString()}
+                      >
+                        {new Intl.DateTimeFormat(undefined, {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        }).format(new Date(signal.createdAt))}
+                      </time>
+                    </p>
+                    <p className="signal-body">{signal.text}</p>
+                    <div className="acknowledgement-row">
+                      <button
+                        className={`acknowledge-button ${acknowledged ? 'acknowledged' : ''}`}
+                        type="button"
+                        disabled={
+                          state.connection !== 'connected' || acknowledged
+                        }
+                        onClick={() => client.acknowledge(signal.id)}
+                      >
+                        {acknowledged
+                          ? 'Acknowledged'
+                          : signal.kind === 'action'
+                            ? 'Acknowledge action'
+                            : 'Acknowledge'}
+                      </button>
+                      <span
+                        title={signal.acknowledgedBy
+                          .map((participant) => participant.name)
+                          .join(', ')}
+                      >
+                        {signal.kind === 'action'
+                          ? `${onlineAcknowledgements} of ${state.participants.length} online acknowledged`
+                          : `Acknowledged by ${signal.acknowledgedBy.length}`}
+                      </span>
+                    </div>
+                  </article>
+                );
+              })
             )}
           </section>
 
           <form className="composer" onSubmit={publish}>
-            <div className="composer-kind">
-              <span className="kind-dot" />
-              Notice
-            </div>
+            <label className="composer-kind">
+              <span
+                className={`kind-dot kind-dot-${kind}`}
+                aria-hidden="true"
+              />
+              <span className="visually-hidden">Signal kind</span>
+              <select
+                value={kind}
+                onChange={(event) => setKind(event.target.value as SignalKind)}
+              >
+                <option value="notice">Notice</option>
+                <option value="question">Question</option>
+                <option value="decision">Decision</option>
+                <option value="action">Action</option>
+              </select>
+            </label>
             <label className="visually-hidden" htmlFor="signal-draft">
               Write a notice
             </label>
@@ -316,18 +376,24 @@ export function RoomPage({ roomKey }: { roomKey: string }) {
 function ConnectionStatus({
   status,
 }: {
-  status: 'connecting' | 'connected' | 'offline';
+  status: 'connecting' | 'connected' | 'reconnecting' | 'offline';
 }) {
   const label =
     status === 'connected'
       ? 'Connected'
       : status === 'connecting'
         ? 'Connecting'
-        : 'Offline';
+        : status === 'reconnecting'
+          ? 'Reconnecting'
+          : 'Offline';
   return (
     <span className={`connection-status connection-${status}`}>
       <i aria-hidden="true" />
       {label}
     </span>
   );
+}
+
+function kindLabel(kind: SignalKind) {
+  return `${kind.charAt(0).toUpperCase()}${kind.slice(1)}`;
 }

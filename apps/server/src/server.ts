@@ -22,6 +22,7 @@ export interface ServerOptions extends HubOptions {
   staticDir?: string;
   joinTimeoutMs?: number;
   heartbeatMs?: number;
+  allowedOrigins?: string[];
 }
 
 export interface RunningServer {
@@ -64,12 +65,17 @@ export async function startServer(
     );
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('Referrer-Policy', 'same-origin');
+    response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader(
+      'Content-Security-Policy',
+      "default-src 'self'; connect-src 'self' ws: wss:; font-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+    );
 
     if (requestUrl.pathname === '/health') {
       response.writeHead(200, {
         'Content-Type': 'application/json; charset=utf-8',
       });
-      response.end(JSON.stringify({ status: 'ok' }));
+      response.end(JSON.stringify({ status: 'ok', version: '0.1.0' }));
       return;
     }
 
@@ -97,6 +103,13 @@ export async function startServer(
     );
     if (requestUrl.pathname !== '/ws') {
       socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+    const origin = request.headers.origin;
+    const sameOrigin = !origin || new URL(origin).host === request.headers.host;
+    if (!sameOrigin && !options.allowedOrigins?.includes(origin)) {
+      socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
       socket.destroy();
       return;
     }
@@ -173,10 +186,15 @@ function configureConnection(
   const peer = {
     id,
     send(event: ServerEvent) {
+      if (socket.bufferedAmount > 256 * 1024) {
+        socket.close(1013, 'Client is not reading messages quickly enough');
+        return;
+      }
       if (socket.readyState === WebSocket.OPEN)
         socket.send(JSON.stringify(event));
     },
   };
+  const publishTimes: number[] = [];
 
   const joinTimer = setTimeout(() => {
     if (hub.hasJoined(id)) return;
@@ -239,7 +257,24 @@ function configureConnection(
         hub.join(peer, event.room, event.roomLabel, event.name);
         clearTimeout(joinTimer);
       } else if (event.type === 'publish') {
-        hub.publish(peer, event.text, event.clientRequestId);
+        const cutoff = Date.now() - 5_000;
+        while (publishTimes[0] && publishTimes[0] < cutoff)
+          publishTimes.shift();
+        if (publishTimes.length >= 10) {
+          peer.send(
+            serverEvent({
+              type: 'error',
+              code: 'RATE_LIMITED',
+              message: 'You can publish again in a few seconds.',
+              clientRequestId: event.clientRequestId,
+            }),
+          );
+          return;
+        }
+        publishTimes.push(Date.now());
+        hub.publish(peer, event.kind, event.text, event.clientRequestId);
+      } else if (event.type === 'ack') {
+        hub.acknowledge(peer, event.messageId);
       } else {
         peer.send({
           type: 'pong',

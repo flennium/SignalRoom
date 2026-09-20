@@ -21,7 +21,7 @@ describe('Hub', () => {
     hub.join(lina.peer, 'demo', undefined, 'Lina');
     hub.join(noor.peer, 'other', 'Other', 'Noor');
 
-    hub.publish(sam.peer, 'The API is ready.', crypto.randomUUID());
+    hub.publish(sam.peer, 'notice', 'The API is ready.', crypto.randomUUID());
 
     expect(sam.events.filter((event) => event.type === 'signal')).toHaveLength(
       1,
@@ -39,7 +39,7 @@ describe('Hub', () => {
     const sam = client();
     hub.join(sam.peer, 'demo', 'Demo', 'Sam');
     for (const text of ['one', 'two', 'three']) {
-      hub.publish(sam.peer, text, crypto.randomUUID());
+      hub.publish(sam.peer, 'notice', text, crypto.randomUUID());
     }
     const lina = client();
     hub.join(lina.peer, 'demo', undefined, 'Lina');
@@ -73,5 +73,27 @@ describe('Hub', () => {
     vi.advanceTimersByTime(100);
     expect(hub.roomCount()).toBe(0);
     vi.useRealTimers();
+  });
+
+  it('acknowledges a signal idempotently and broadcasts the state', () => {
+    const hub = new Hub();
+    const sam = client();
+    const lina = client();
+    hub.join(sam.peer, 'demo', 'Demo', 'Sam');
+    hub.join(lina.peer, 'demo', undefined, 'Lina');
+    const signal = hub.publish(
+      sam.peer,
+      'action',
+      'Restart the client.',
+      crypto.randomUUID(),
+    );
+
+    hub.acknowledge(lina.peer, signal.id);
+    hub.acknowledge(lina.peer, signal.id);
+
+    expect(signal.acknowledgedBy).toEqual([{ id: lina.peer.id, name: 'Lina' }]);
+    expect(
+      lina.events.filter((event) => event.type === 'acknowledged'),
+    ).toHaveLength(2);
   });
 });

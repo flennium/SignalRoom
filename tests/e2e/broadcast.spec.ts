@@ -31,16 +31,27 @@ test('two browser clients share presence and one authoritative notice', async ({
   await expect(host.getByText('The API is ready.')).toHaveCount(1);
   await expect(participant.getByText('The API is ready.')).toHaveCount(1);
 
+  await host.getByLabel('Signal kind').selectOption('action');
+  await host.getByLabel('Write a notice').fill('Restart the test client.');
+  await host.getByRole('button', { name: 'Publish' }).click();
+  await participant.getByRole('button', { name: 'Acknowledge action' }).click();
+  await expect(host.getByText('1 of 2 online acknowledged')).toBeVisible();
+  await expect(
+    participant.getByRole('button', { name: 'Acknowledged' }),
+  ).toBeDisabled();
+
   await hostContext.close();
   await participantContext.close();
 });
 
-test('participant rail opens on a narrow screen', async ({ page }) => {
+test('participant rail opens on a narrow screen', async ({
+  page,
+}, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     localStorage.setItem('signalroom.displayName', 'Noor');
   });
-  await page.goto('/r/mobile-room');
+  await page.goto(`/r/mobile-room-${testInfo.project.name}`);
   await page.getByRole('button', { name: '1 online' }).click();
   await expect(
     page.getByRole('heading', { name: 'Participants' }),

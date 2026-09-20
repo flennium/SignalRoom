@@ -11,7 +11,8 @@ export interface RoomSummary {
 }
 
 export interface RoomState {
-  connection: 'connecting' | 'connected' | 'offline';
+  connection: 'connecting' | 'connected' | 'reconnecting' | 'offline';
+  reconnectAttempt: number;
   self: Participant | null;
   room: RoomSummary | null;
   participants: Participant[];
@@ -23,6 +24,7 @@ export interface RoomState {
 
 export const initialRoomState: RoomState = {
   connection: 'connecting',
+  reconnectAttempt: 0,
   self: null,
   room: null,
   participants: [],
@@ -34,13 +36,28 @@ export const initialRoomState: RoomState = {
 
 export type RoomAction =
   | { type: 'connecting' }
+  | { type: 'reconnecting'; attempt: number }
   | { type: 'offline'; message?: string }
   | { type: 'publishing'; requestId: string }
   | { type: 'server'; event: ServerEvent };
 
 export function roomReducer(state: RoomState, action: RoomAction): RoomState {
   if (action.type === 'connecting') {
-    return { ...state, connection: 'connecting', error: null };
+    return {
+      ...state,
+      connection: 'connecting',
+      reconnectAttempt: 0,
+      error: null,
+    };
+  }
+  if (action.type === 'reconnecting') {
+    return {
+      ...state,
+      connection: 'reconnecting',
+      reconnectAttempt: action.attempt,
+      publishingRequestId: null,
+      error: null,
+    };
   }
   if (action.type === 'offline') {
     return {
@@ -67,6 +84,7 @@ export function roomReducer(state: RoomState, action: RoomAction): RoomState {
       return {
         ...state,
         connection: 'connected',
+        reconnectAttempt: 0,
         self: event.self,
         room: event.room,
         error: null,
@@ -89,6 +107,15 @@ export function roomReducer(state: RoomState, action: RoomAction): RoomState {
     }
     case 'presence':
       return { ...state, participants: event.participants };
+    case 'acknowledged':
+      return {
+        ...state,
+        signals: state.signals.map((signal) =>
+          signal.id === event.messageId
+            ? { ...signal, acknowledgedBy: event.acknowledgedBy }
+            : signal,
+        ),
+      };
     case 'error':
       return reduceError(state, event);
     case 'shutdown':

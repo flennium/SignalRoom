@@ -24,6 +24,16 @@ function connect(url: string) {
   );
 }
 
+function connectWithOrigin(url: string, origin: string) {
+  const socket = new WebSocket(url.replace('http', 'ws') + '/ws', {
+    headers: { Origin: origin },
+  });
+  return new Promise<void>((resolve, reject) => {
+    socket.once('open', () => resolve());
+    socket.once('error', reject);
+  });
+}
+
 function waitFor(predicate: () => boolean, timeoutMs = 1_000) {
   return new Promise<void>((resolve, reject) => {
     const started = Date.now();
@@ -46,6 +56,7 @@ describe('SignalRoom server', () => {
       await fetch(`${server.url}/health`).then((response) => response.json()),
     ).toEqual({
       status: 'ok',
+      version: '0.1.0',
     });
 
     const sam = await connect(server.url);
@@ -106,5 +117,86 @@ describe('SignalRoom server', () => {
       },
     );
     client.socket.close();
+  });
+
+  it('broadcasts idempotent acknowledgements', async () => {
+    server = await startServer({ port: 0 });
+    const sam = await connect(server.url);
+    const lina = await connect(server.url);
+    for (const [client, name] of [
+      [sam, 'Sam'],
+      [lina, 'Lina'],
+    ] as const) {
+      client.socket.send(
+        JSON.stringify({ type: 'join', protocol: 1, room: 'demo', name }),
+      );
+    }
+    await waitFor(() => sam.events.some((event) => event.type === 'welcome'));
+    sam.socket.send(
+      JSON.stringify({
+        type: 'publish',
+        kind: 'action',
+        text: 'Restart the client.',
+        clientRequestId: crypto.randomUUID(),
+      }),
+    );
+    await waitFor(() => sam.events.some((event) => event.type === 'signal'));
+    const signalEvent = sam.events.find((event) => event.type === 'signal');
+    if (!signalEvent || signalEvent.type !== 'signal')
+      throw new Error('Missing signal event');
+    lina.socket.send(
+      JSON.stringify({ type: 'ack', messageId: signalEvent.signal.id }),
+    );
+    lina.socket.send(
+      JSON.stringify({ type: 'ack', messageId: signalEvent.signal.id }),
+    );
+    await waitFor(
+      () =>
+        sam.events.filter((event) => event.type === 'acknowledged').length ===
+        2,
+    );
+    const acknowledged = sam.events
+      .filter((event) => event.type === 'acknowledged')
+      .at(-1);
+    expect(
+      acknowledged?.type === 'acknowledged' ? acknowledged.acknowledgedBy : [],
+    ).toHaveLength(1);
+    sam.socket.close();
+    lina.socket.close();
+  });
+
+  it('rate limits publish bursts', async () => {
+    server = await startServer({ port: 0 });
+    const client = await connect(server.url);
+    client.socket.send(
+      JSON.stringify({ type: 'join', protocol: 1, room: 'demo', name: 'Sam' }),
+    );
+    await waitFor(() =>
+      client.events.some((event) => event.type === 'welcome'),
+    );
+    for (let index = 0; index < 11; index += 1) {
+      client.socket.send(
+        JSON.stringify({
+          type: 'publish',
+          kind: 'notice',
+          text: `Message ${index}`,
+          clientRequestId: crypto.randomUUID(),
+        }),
+      );
+    }
+    await waitFor(() => client.events.some((event) => event.type === 'error'));
+    expect(client.events.find((event) => event.type === 'error')).toMatchObject(
+      {
+        code: 'RATE_LIMITED',
+      },
+    );
+    client.socket.close();
+  });
+
+  it('rejects cross-origin browser connections', async () => {
+    server = await startServer({ port: 0 });
+    await expect(
+      connectWithOrigin(server.url, 'https://untrusted.example'),
+    ).rejects.toThrow();
   });
 });

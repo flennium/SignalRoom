@@ -69,7 +69,8 @@ signalroom/
 ├── docs/
 │   ├── PROJECT_PLAN.md
 │   ├── UI_SPEC.md
-│   └── ARCHITECTURE.md
+│   ├── ARCHITECTURE.md
+│   └── DEPLOYMENT.md
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml

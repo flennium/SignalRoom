@@ -22,13 +22,22 @@ npm run build
 node apps/cli/dist/index.js start
 ```
 
-The production server serves the web interface and WebSocket endpoint from `http://127.0.0.1:8080`. The interactive `signalroom connect` client is intentionally reserved for the next implementation phase.
+The production server serves the web interface and WebSocket endpoint from `http://127.0.0.1:8080`.
+
+Connect from a terminal:
+
+```console
+node apps/cli/dist/index.js connect --room lobby --name Lina
+```
+
+See the [deployment guide](docs/DEPLOYMENT.md) for Docker, environment variables, TLS, health checks, and separately hosted browser configuration.
 
 ## Project documentation
 
 - [Project plan](docs/PROJECT_PLAN.md) — scope, user journeys, technical choices, milestones, and first backlog.
 - [Interface specification](docs/UI_SPEC.md) — visual direction, page layouts, components, responsive behavior, copy, and accessibility.
 - [Architecture](docs/ARCHITECTURE.md) — workspace structure, application boundaries, connection lifecycle, reliability, security, tests, and CI.
+- [Deployment](docs/DEPLOYMENT.md) — Docker, environment configuration, TLS, health checks, and release validation.
 
 SignalRoom is a small, self-hosted coordination server for temporary groups. A host starts one server, people or scripts connect from a terminal, and everyone receives the same live stream of structured signals.
 

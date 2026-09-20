@@ -5,6 +5,7 @@ import {
   type Participant,
   type ServerEvent,
   type Signal,
+  type SignalKind,
 } from '@signalroom/protocol';
 
 export interface HubClient {
@@ -109,7 +110,12 @@ export class Hub {
     return participant;
   }
 
-  publish(peer: HubClient, text: string, clientRequestId: string) {
+  publish(
+    peer: HubClient,
+    kind: SignalKind,
+    text: string,
+    clientRequestId: string,
+  ) {
     const room = this.getJoinedRoom(peer.id);
     const joinedClient = room.clients.get(peer.id);
     if (!joinedClient) {
@@ -119,11 +125,12 @@ export class Hub {
     const signal: Signal = {
       id: randomUUID(),
       room: room.key,
-      kind: 'notice',
+      kind,
       text: text.trim(),
       sender: joinedClient.participant,
       createdAt: now(),
       clientRequestId,
+      acknowledgedBy: [],
     };
 
     room.history.push(signal);
@@ -138,6 +145,32 @@ export class Hub {
       signal,
     });
     return signal;
+  }
+
+  acknowledge(peer: HubClient, messageId: string) {
+    const room = this.getJoinedRoom(peer.id);
+    const joinedClient = room.clients.get(peer.id);
+    const signal = room.history.find((candidate) => candidate.id === messageId);
+    if (!joinedClient || !signal) {
+      throw new HubError(
+        'MESSAGE_NOT_FOUND',
+        'That signal is no longer available in this room.',
+      );
+    }
+
+    if (
+      !signal.acknowledgedBy.some((participant) => participant.id === peer.id)
+    ) {
+      signal.acknowledgedBy.push(joinedClient.participant);
+    }
+    this.broadcast(room, {
+      type: 'acknowledged',
+      protocol: PROTOCOL_VERSION,
+      serverTime: now(),
+      messageId,
+      acknowledgedBy: [...signal.acknowledgedBy],
+    });
+    return signal.acknowledgedBy;
   }
 
   leave(clientId: string) {
@@ -203,7 +236,8 @@ export class Hub {
 
 export class HubError extends Error {
   constructor(
-    readonly code: 'NOT_JOINED' | 'ALREADY_JOINED' | 'ROOM_FULL',
+    readonly code:
+      'NOT_JOINED' | 'ALREADY_JOINED' | 'ROOM_FULL' | 'MESSAGE_NOT_FOUND',
     message: string,
   ) {
     super(message);

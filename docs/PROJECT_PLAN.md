@@ -130,18 +130,18 @@ Avoid `channel`, `message broker`, `consumer`, and `subscriber` in user-facing t
 
 ## 7. Technical choices
 
-| Area               | Choice                                | Reason                                                           |
-| ------------------ | ------------------------------------- | ---------------------------------------------------------------- |
-| Language           | TypeScript                            | Shared protocol types across web, server, and CLI.               |
-| Package manager    | pnpm workspaces                       | Fast installs and explicit workspace dependencies.               |
-| Web UI             | React + Vite                          | Small client build with a familiar component model.              |
-| Styling            | CSS Modules plus global design tokens | Keeps the visual system explicit and avoids utility-class noise. |
-| Server             | Node.js HTTP server + `ws`            | Keeps WebSocket mechanics visible for learning.                  |
-| Validation         | Zod                                   | Runtime validation at every network boundary.                    |
-| CLI                | Commander + Node `readline/promises`  | Small dependency surface and straightforward interaction.        |
-| Unit tests         | Vitest                                | Works across all TypeScript packages.                            |
-| Browser tests      | Playwright                            | Verifies multi-client flows in real browser contexts.            |
-| Formatting/linting | Prettier + ESLint                     | One predictable repository style.                                |
+| Area               | Choice                                | Reason                                                                    |
+| ------------------ | ------------------------------------- | ------------------------------------------------------------------------- |
+| Language           | TypeScript                            | Shared protocol types across web, server, and CLI.                        |
+| Package manager    | npm workspaces                        | Uses the standard Node.js toolchain with explicit workspace dependencies. |
+| Web UI             | React + Vite                          | Small client build with a familiar component model.                       |
+| Styling            | CSS Modules plus global design tokens | Keeps the visual system explicit and avoids utility-class noise.          |
+| Server             | Node.js HTTP server + `ws`            | Keeps WebSocket mechanics visible for learning.                           |
+| Validation         | Zod                                   | Runtime validation at every network boundary.                             |
+| CLI                | Commander + Node `readline/promises`  | Small dependency surface and straightforward interaction.                 |
+| Unit tests         | Vitest                                | Works across all TypeScript packages.                                     |
+| Browser tests      | Playwright                            | Verifies multi-client flows in real browser contexts.                     |
+| Formatting/linting | Prettier + ESLint                     | One predictable repository style.                                         |
 
 Do not add a database, state-management framework, component library, or HTTP framework until a concrete need appears.
 
@@ -150,11 +150,11 @@ Do not add a database, state-management framework, component library, or HTTP fr
 ### Local
 
 ```text
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
-`pnpm dev` runs the web app and server together. The web development server proxies `/ws` to the local WebSocket server so the browser uses one origin during development.
+`npm run dev` runs the web app and server together. The web development server proxies `/ws` to the local WebSocket server so the browser uses one origin during development.
 
 ### Production
 

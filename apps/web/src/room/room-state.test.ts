@@ -10,6 +10,7 @@ const signal: Signal = {
   sender: { id: crypto.randomUUID(), name: 'Sam' },
   createdAt: new Date().toISOString(),
   clientRequestId: crypto.randomUUID(),
+  acknowledgedBy: [],
 };
 
 describe('roomReducer', () => {
@@ -54,5 +55,21 @@ describe('roomReducer', () => {
     expect(twice.signals).toHaveLength(1);
     expect(once.publishingRequestId).toBeNull();
     expect(once.publishedRequestId).toBe(signal.clientRequestId);
+  });
+
+  it('applies authoritative acknowledgement state', () => {
+    const state = { ...initialRoomState, signals: [signal] };
+    const acknowledgedBy = [{ id: crypto.randomUUID(), name: 'Lina' }];
+    const next = roomReducer(state, {
+      type: 'server',
+      event: {
+        type: 'acknowledged',
+        protocol: PROTOCOL_VERSION,
+        serverTime: new Date().toISOString(),
+        messageId: signal.id,
+        acknowledgedBy,
+      },
+    });
+    expect(next.signals[0]?.acknowledgedBy).toEqual(acknowledgedBy);
   });
 });

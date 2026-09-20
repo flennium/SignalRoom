@@ -13,7 +13,12 @@ export * from './limits.js';
 const nonBlank = (max: number) => z.string().trim().min(1).max(max);
 const timestampSchema = z.string().datetime();
 
-export const signalKindSchema = z.literal('notice');
+export const signalKindSchema = z.enum([
+  'notice',
+  'question',
+  'decision',
+  'action',
+]);
 
 export const participantSchema = z.object({
   id: z.string().uuid(),
@@ -28,6 +33,7 @@ export const signalSchema = z.object({
   sender: participantSchema,
   createdAt: timestampSchema,
   clientRequestId: z.string().uuid(),
+  acknowledgedBy: z.array(participantSchema),
 });
 
 export const joinEventSchema = z.object({
@@ -47,9 +53,15 @@ export const publishEventSchema = z.object({
 
 export const pingEventSchema = z.object({ type: z.literal('ping') });
 
+export const acknowledgeEventSchema = z.object({
+  type: z.literal('ack'),
+  messageId: z.string().uuid(),
+});
+
 export const clientEventSchema = z.discriminatedUnion('type', [
   joinEventSchema,
   publishEventSchema,
+  acknowledgeEventSchema,
   pingEventSchema,
 ]);
 
@@ -82,12 +94,20 @@ export const presenceEventSchema = serverBaseSchema.extend({
   participants: z.array(participantSchema),
 });
 
+export const acknowledgedEventSchema = serverBaseSchema.extend({
+  type: z.literal('acknowledged'),
+  messageId: z.string().uuid(),
+  acknowledgedBy: z.array(participantSchema),
+});
+
 export const errorCodeSchema = z.enum([
   'INVALID_EVENT',
   'NOT_JOINED',
   'ALREADY_JOINED',
   'ROOM_FULL',
   'MESSAGE_TOO_LARGE',
+  'MESSAGE_NOT_FOUND',
+  'RATE_LIMITED',
   'JOIN_TIMEOUT',
   'SERVER_SHUTDOWN',
 ]);
@@ -113,20 +133,24 @@ export const serverEventSchema = z.discriminatedUnion('type', [
   historyEventSchema,
   signalEventSchema,
   presenceEventSchema,
+  acknowledgedEventSchema,
   errorEventSchema,
   shutdownEventSchema,
   pongEventSchema,
 ]);
 
 export type Participant = z.infer<typeof participantSchema>;
+export type SignalKind = z.infer<typeof signalKindSchema>;
 export type Signal = z.infer<typeof signalSchema>;
 export type JoinEvent = z.infer<typeof joinEventSchema>;
 export type PublishEvent = z.infer<typeof publishEventSchema>;
+export type AcknowledgeEvent = z.infer<typeof acknowledgeEventSchema>;
 export type ClientEvent = z.infer<typeof clientEventSchema>;
 export type WelcomeEvent = z.infer<typeof welcomeEventSchema>;
 export type HistoryEvent = z.infer<typeof historyEventSchema>;
 export type SignalEvent = z.infer<typeof signalEventSchema>;
 export type PresenceEvent = z.infer<typeof presenceEventSchema>;
+export type AcknowledgedEvent = z.infer<typeof acknowledgedEventSchema>;
 export type ErrorEvent = z.infer<typeof errorEventSchema>;
 export type ShutdownEvent = z.infer<typeof shutdownEventSchema>;
 export type ServerEvent = z.infer<typeof serverEventSchema>;
